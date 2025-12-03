@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koa Todo List API 实战演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义滚动条样式 */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center py-10 px-4 text-slate-800">
+
+<div class="w-full max-w-5xl mb-8 text-center space-y-4">
+    <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">
+        Koa <span class="text-indigo-600">Todo List</span
+    </h1>
+<!--    <p class="text-slate-600 text-lg">-->
+<!--        基于 Node.js 实现的 RESTful API 服务与数据持久化-->
+<!--    </p>-->
+
+<!--    <div class="flex flex-wrap justify-center gap-2 mt-4">-->
+<!--            <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold border border-green-200">-->
+<!--                🌱 Koa 框架基础-->
+<!--            </span>-->
+<!--        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold border border-blue-200">-->
+<!--                🛣️ koa-router 路由-->
+<!--            </span>-->
+<!--        <span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold border border-purple-200">-->
+<!--                📦 koa-bodyparser 中间件-->
+<!--            </span>-->
+<!--        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold border border-orange-200">-->
+<!--                💾 fs 本地文件持久化-->
+<!--            </span>-->
+<!--    </div>-->
+</div>
+
+<div class="bg-white p-8 rounded-xl shadow-lg border border-slate-200 w-full max-w-5xl mb-8">
+    <div class="mb-6 flex justify-between items-end border-b border-slate-100 pb-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">API 数据展示面板</h2>
+            <p class="text-slate-500 text-sm mt-1">前端仅作为 API 接口的调用演示</p>
+        </div>
+        <div class="text-xs text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded">Endpoint: /api/todos</div>
+    </div>
+
+    <div class="flex gap-3 mb-6">
+        <input type="text" id="todoInput"
+               class="flex-1 border-2 border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors shadow-sm"
+               placeholder="测试 POST /api/todos 接口：输入任务标题...">
+        <button onclick="addTodo()"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors shadow-md flex items-center whitespace-nowrap">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+            </svg>
+            发送 POST 请求
+        </button>
+    </div>
+
+    <div class="bg-slate-50 rounded-lg border border-slate-200 p-2">
+        <ul id="todoList" class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-2">
+        </ul>
+
+        <div id="emptyState" class="hidden text-center py-12">
+            <div class="text-4xl mb-2 opacity-50">📂</div>
+            <p class="text-slate-400">Database (todos.json) is empty</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full max-w-5xl">
+
+    <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col relative overflow-hidden group">
+        <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+        <h3 class="text-lg font-bold text-slate-700 mb-2 flex items-center">
+            🔍 检索 (Query)
+        </h3>
+        <p class="text-xs text-slate-400 mb-4 font-mono">模拟 GET 查询逻辑</p>
+
+        <div class="flex gap-2 mb-3">
+            <input type="text" id="searchInput" placeholder="Task ID" class="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 font-mono">
+            <button onclick="searchById()" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-1.5 rounded text-sm font-medium transition-colors">Find</button>
+        </div>
+        <div id="searchResult" class="text-xs text-slate-600 bg-slate-100 p-3 rounded flex-1 border border-slate-200 font-mono break-all overflow-auto max-h-32">
+            // JSON Result...
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+        <h3 class="text-lg font-bold text-slate-700 mb-2 flex items-center">
+            ✏️ 更新 (PUT)
+        </h3>
+        <p class="text-xs text-slate-400 mb-4 font-mono">PUT /api/todos/:id</p>
+
+        <div class="space-y-2 mb-3">
+            <input type="text" id="updateIdInput" placeholder="Target ID" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-amber-500 font-mono">
+            <div class="flex gap-2">
+                <input type="text" id="updateTitleInput" placeholder="New Title Body" class="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-amber-500">
+                <button onclick="updateByIdDirect()" class="bg-amber-600 text-white hover:bg-amber-700 px-3 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap">Send PUT</button>
+            </div>
+        </div>
+        <div id="updateResult" class="text-xs text-slate-600 bg-slate-100 p-3 rounded flex-1 border border-slate-200 font-mono">
+            // Response status...
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+        <h3 class="text-lg font-bold text-slate-700 mb-2 flex items-center">
+            🗑️ 删除 (DELETE)
+        </h3>
+        <p class="text-xs text-slate-400 mb-4 font-mono">DELETE /api/todos/:id</p>
+
+        <div class="flex gap-2 mb-3">
+            <input type="text" id="deleteInput" placeholder="Target ID" class="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-red-500 font-mono">
+            <button onclick="deleteByIdDirect()" class="bg-red-600 text-white hover:bg-red-700 px-3 py-1.5 rounded text-sm font-medium transition-colors">Send DELETE</button>
+        </div>
+        <div id="deleteResult" class="text-xs text-slate-600 bg-slate-100 p-3 rounded flex-1 border border-slate-200 font-mono">
+            // Response status...
+        </div>
+    </div>
+
+</div>
+
+<!--<footer class="mt-12 text-slate-400 text-sm">-->
+<!--    Node.js Koa Framework Practice Project-->
+<!--</footer>-->
+
+
+<script>
+    const API_URL = '/api/todos';
+
+    // DOM Elements
+    const todoListEl = document.getElementById('todoList');
+    const inputEl = document.getElementById('todoInput');
+    const emptyStateEl = document.getElementById('emptyState');
+
+    const searchInputEl = document.getElementById('searchInput');
+    const searchResultEl = document.getElementById('searchResult');
+
+    const deleteInputEl = document.getElementById('deleteInput');
+    const deleteResultEl = document.getElementById('deleteResult');
+
+    const updateIdInput = document.getElementById('updateIdInput');
+    const updateTitleInput = document.getElementById('updateTitleInput');
+    const updateResultEl = document.getElementById('updateResult');
+
+    // Init
+    document.addEventListener('DOMContentLoaded', fetchTodos);
+    inputEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTodo(); });
+
+    // =========== Core API Functions ===========
+
+    async function fetchTodos() {
+        try {
+            const res = await fetch(API_URL);
+            const todos = await res.json();
+            renderTodos(todos);
+        } catch (err) { console.error('GET Failed:', err); }
+    }
+
+    async function addTodo() {
+        const title = inputEl.value.trim();
+        if (!title) return;
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            });
+            if (res.ok) { inputEl.value = ''; fetchTodos(); }
+        } catch (err) { console.error('POST Failed:', err); }
+    }
+
+    async function toggleTodo(id, currentStatus) {
+        try {
+            const res = await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: !currentStatus })
+            });
+            if (res.ok) fetchTodos();
+        } catch (err) { console.error('PUT Failed:', err); }
+    }
+
+    async function deleteTodoItem(id) {
+        if(!confirm(`Confirm DELETE request for ID: ${id}?`)) return;
+        try {
+            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (res.ok) fetchTodos();
+        } catch (err) { console.error('DELETE Failed:', err); }
+    }
+
+    async function copyId(id) {
+        try {
+            await navigator.clipboard.writeText(id);
+            // Simple feedback
+            const btn = document.activeElement;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="text-xs font-bold text-green-600">Copied!</span>';
+            setTimeout(() => btn.innerHTML = originalHTML, 5000);
+        } catch (err) { alert('Copy failed'); }
+    }
+
+
+    // =========== Component Functions ===========
+
+    // 1. Search (Simulated via Client Filter for this demo)
+    async function searchById() {
+        const id = searchInputEl.value.trim();
+        if (!id) { searchResultEl.innerHTML = '<span class="text-orange-500">ID Required</span>'; return; }
+
+        searchResultEl.textContent = 'Fetching...';
+        try {
+            const res = await fetch(API_URL);
+            const todos = await res.json();
+            const target = todos.find(t => t.id === id);
+            if (target) {
+                searchResultEl.innerHTML = `<pre class="text-blue-700">${JSON.stringify(target, null, 2)}</pre>`;
+            } else {
+                searchResultEl.innerHTML = '<span class="text-red-500">404 Not Found</span>';
+            }
+        } catch (err) { searchResultEl.textContent = 'Error'; }
+    }
+
+    // 2. Update (PUT)
+    async function updateByIdDirect() {
+        const id = updateIdInput.value.trim();
+        const newTitle = updateTitleInput.value.trim();
+
+        if (!id || !newTitle) {
+            updateResultEl.innerHTML = '<span class="text-orange-500">ID & Title Required</span>';
+            return;
+        }
+
+        updateResultEl.textContent = 'Sending PUT...';
+
+        try {
+            const res = await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                updateResultEl.innerHTML = '<span class="text-green-600 font-bold">200 OK: Updated</span>';
+                updateIdInput.value = '';
+                updateTitleInput.value = '';
+                fetchTodos();
+            } else if (res.status === 404) {
+                updateResultEl.innerHTML = '<span class="text-red-500 font-bold">404 Not Found</span>';
+            } else {
+                updateResultEl.innerHTML = `<span class="text-red-500">Error: ${res.status}</span>`;
+            }
+        } catch (err) {
+            updateResultEl.innerHTML = '<span class="text-red-500">Network Error</span>';
+        }
+    }
+
+    // 3. Delete (DELETE)
+    async function deleteByIdDirect() {
+        const id = deleteInputEl.value.trim();
+        if (!id) { deleteResultEl.innerHTML = '<span class="text-orange-500">ID Required</span>'; return; }
+
+        deleteResultEl.textContent = 'Sending DELETE...';
+        try {
+            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (res.status === 204) {
+                deleteResultEl.innerHTML = '<span class="text-green-600 font-bold">204 No Content (Success)</span>';
+                deleteInputEl.value = '';
+                fetchTodos();
+            } else if (res.status === 404) {
+                deleteResultEl.innerHTML = '<span class="text-red-500 font-bold">404 Not Found</span>';
+            } else {
+                deleteResultEl.innerHTML = `<span class="text-red-500">Error: ${res.status}</span>`;
+            }
+        } catch (err) { deleteResultEl.textContent = 'Network Error'; }
+    }
+
+
+    // =========== Render UI ===========
+    function renderTodos(todos) {
+        todoListEl.innerHTML = '';
+        if (todos.length === 0) {
+            emptyStateEl.classList.remove('hidden');
+            todoListEl.classList.add('hidden');
+            return;
+        }
+        emptyStateEl.classList.add('hidden');
+        todoListEl.classList.remove('hidden');
+
+        todos.reverse().forEach(todo => {
+            const li = document.createElement('li');
+            li.className = `flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:shadow-sm transition-all ${todo.completed ? 'bg-slate-50' : ''}`;
+            li.innerHTML = `
+                    <div class="flex items-center gap-3 cursor-pointer flex-1 min-w-0 mr-4" onclick="toggleTodo('${todo.id}', ${todo.completed})">
+                        <div class="flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-colors ${todo.completed ? 'bg-green-500 border-green-500' : 'border-slate-300 hover:border-indigo-500'}">
+                            ${todo.completed ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                        </div>
+                        <div class="flex flex-col min-w-0">
+                             <span class="font-medium text-slate-800 truncate ${todo.completed ? 'line-through text-slate-400' : ''}">${todo.title}</span>
+                             <span class="text-[10px] text-slate-400 font-mono">ID: ${todo.id}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button onclick="copyId('${todo.id}')" title="Copy ID" class="text-slate-400 hover:text-indigo-600 p-1.5 rounded hover:bg-indigo-50 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                        </button>
+                        <button onclick="deleteTodoItem('${todo.id}')" title="Delete" class="text-slate-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+            todoListEl.appendChild(li);
+        });
+    }
+</script>
+</body>
+</html>
