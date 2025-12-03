@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="fig/preview.png" alt="Project Preview"  />
+<img src="fig/preview.jpg" alt="Project Preview"  />
 
 ----
 
